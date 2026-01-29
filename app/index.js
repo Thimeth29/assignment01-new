@@ -5,21 +5,19 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const app = express();
 const PORT = 8080;
 
-// Serve Static Files
+// Serve static files
 app.use(express.static('public'));
 
-// AWS S3 Configuration
+// AWS S3
 const s3 = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1'
 });
-
 const BUCKET_NAME = process.env.BUCKET_NAME;
 
-// Multer Configuration
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+// Multer
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Home Page
+// Home page
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -36,22 +34,34 @@ app.get('/', (req, res) => {
           display: flex;
           justify-content: center;
           align-items: center;
-          background: linear-gradient(135deg, #020617, #0f172a);
+
+          /* 🔥 BACKGROUND IMAGE */
+          background: 
+            linear-gradient(
+              rgba(0,0,0,0.6),
+              rgba(0,0,0,0.6)
+            ),
+            url('/bg.jpg');
+
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+
           font-family: Arial, sans-serif;
           color: white;
         }
 
         .container {
           text-align: center;
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(0, 0, 0, 0.6);
           padding: 45px 55px;
           border-radius: 16px;
-          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 15px 35px rgba(0,0,0,0.7);
         }
 
         h1 {
-          margin-bottom: 10px;
           font-size: 38px;
+          margin-bottom: 10px;
           color: #38bdf8;
         }
 
@@ -66,7 +76,6 @@ app.get('/', (req, res) => {
 
         input[type="file"] {
           margin-bottom: 15px;
-          font-size: 15px;
         }
 
         button {
@@ -102,26 +111,24 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Health Check
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Upload Endpoint
+// Upload
 app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file || !BUCKET_NAME) {
-    return res.status(400).send('Error: Missing file or S3 bucket configuration.');
+    return res.status(400).send('Missing file or bucket name');
   }
 
   try {
-    const params = {
+    await s3.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: `${Date.now()}_${req.file.originalname}`,
       Body: req.file.buffer,
       ContentType: req.file.mimetype
-    };
-
-    await s3.send(new PutObjectCommand(params));
+    }));
 
     res.send(`
       <body style="
@@ -130,15 +137,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         font-family:Arial;
         text-align:center;
         padding-top:80px;">
-        
         <h1 style="color:#38bdf8;">Upload Successful</h1>
-        <p style="font-size:18px;">
-          File <b>${req.file.originalname}</b> uploaded to S3
-        </p>
-
+        <p>${req.file.originalname} uploaded to S3</p>
         <a href="/" style="
-          display:inline-block;
-          margin-top:30px;
           color:#38bdf8;
           text-decoration:none;
           border:2px solid #38bdf8;
@@ -148,13 +149,12 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         </a>
       </body>
     `);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Error uploading to S3: ' + error.message);
+  } catch (err) {
+    res.status(500).send('Upload failed: ' + err.message);
   }
 });
 
-// Start Server
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
