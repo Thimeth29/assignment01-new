@@ -1,0 +1,79 @@
+const express = require('express');
+const multer = require('multer');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const path = require('path');
+
+const app = express();
+const PORT = 8080;
+
+// Serve Static Files
+app.use(express.static('public'));
+
+// Configure AWS S3
+const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const BUCKET_NAME = process.env.BUCKET_NAME;
+
+// Configure Multer
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Cloud Assignment</title>
+      <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+      <div class="content">
+        <h1>Sithumi Jayarathna</h1>
+        <h2>23ug1-0066</h2>
+        <h2>Cloud Computing</h2>
+
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+          <input type="file" name="file" required />
+          <button type="submit">Upload File</button>
+        </form>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// Health Check
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Upload Logic
+app.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file || !BUCKET_NAME) {
+    return res.status(400).send('Error: Missing file or Bucket configuration.');
+  }
+  try {
+    const params = {
+      Bucket: BUCKET_NAME,
+      Key: `${Date.now()}_${req.file.originalname}`,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    };
+    await s3.send(new PutObjectCommand(params));
+    res.send(`
+      <body style="background-color: #212121; color: white; font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h1 style="color: #2196f3;">Success!</h1>
+        <p style="font-size: 1.5em;">Successfully uploaded <b>${req.file.originalname}</b></p>
+        <a href="/" style="color: #2196f3; font-size: 1.2em; text-decoration: none; border: 2px solid #2196f3; padding: 10px 20px; border-radius: 5px;">Go Back</a>
+      </body>
+    `);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error uploading to S3: ' + error.message);
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+});
