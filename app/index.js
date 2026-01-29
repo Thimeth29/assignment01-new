@@ -1,7 +1,6 @@
 const express = require('express');
 const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const path = require('path');
 
 const app = express();
 const PORT = 8080;
@@ -9,33 +8,93 @@ const PORT = 8080;
 // Serve Static Files
 app.use(express.static('public'));
 
-// Configure AWS S3
-const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+// AWS S3 Configuration
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1'
+});
+
 const BUCKET_NAME = process.env.BUCKET_NAME;
 
-// Configure Multer
+// Multer Configuration
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
+// Home Page
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Cloud Assignment</title>
-      <link rel="stylesheet" href="/style.css">
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Cloud Assignment - Version 2</title>
+
+      <style>
+        body {
+          margin: 0;
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: linear-gradient(135deg, #020617, #0f172a);
+          font-family: Arial, sans-serif;
+          color: white;
+        }
+
+        .container {
+          text-align: center;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 45px 55px;
+          border-radius: 16px;
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        }
+
+        h1 {
+          margin-bottom: 10px;
+          font-size: 38px;
+          color: #38bdf8;
+        }
+
+        h2 {
+          margin: 6px 0;
+          font-weight: normal;
+        }
+
+        form {
+          margin-top: 30px;
+        }
+
+        input[type="file"] {
+          margin-bottom: 15px;
+          font-size: 15px;
+        }
+
+        button {
+          background-color: #38bdf8;
+          color: #020617;
+          border: none;
+          padding: 12px 30px;
+          font-size: 16px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+
+        button:hover {
+          background-color: #0ea5e9;
+        }
+      </style>
     </head>
+
     <body>
-      <div class="content">
-        <h1>Sithumi Jayarathna</h1>
-        <h2>23ug1-0066</h2>
-        <h2>Cloud Computing</h2>
+      <div class="container">
+        <h1>Thimeth Chathnuka</h1>
+        <h2>23ug1-0005</h2>
+        <h2>Cloud Computing Assignment</h2>
 
         <form action="/upload" method="POST" enctype="multipart/form-data">
           <input type="file" name="file" required />
-          <button type="submit">Upload File</button>
+          <br />
+          <button type="submit">Upload File to S3</button>
         </form>
       </div>
     </body>
@@ -48,24 +107,45 @@ app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Upload Logic
+// Upload Endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file || !BUCKET_NAME) {
-    return res.status(400).send('Error: Missing file or Bucket configuration.');
+    return res.status(400).send('Error: Missing file or S3 bucket configuration.');
   }
+
   try {
     const params = {
       Bucket: BUCKET_NAME,
       Key: `${Date.now()}_${req.file.originalname}`,
       Body: req.file.buffer,
-      ContentType: req.file.mimetype,
+      ContentType: req.file.mimetype
     };
+
     await s3.send(new PutObjectCommand(params));
+
     res.send(`
-      <body style="background-color: #212121; color: white; font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h1 style="color: #2196f3;">Success!</h1>
-        <p style="font-size: 1.5em;">Successfully uploaded <b>${req.file.originalname}</b></p>
-        <a href="/" style="color: #2196f3; font-size: 1.2em; text-decoration: none; border: 2px solid #2196f3; padding: 10px 20px; border-radius: 5px;">Go Back</a>
+      <body style="
+        background:#020617;
+        color:white;
+        font-family:Arial;
+        text-align:center;
+        padding-top:80px;">
+        
+        <h1 style="color:#38bdf8;">Upload Successful</h1>
+        <p style="font-size:18px;">
+          File <b>${req.file.originalname}</b> uploaded to S3
+        </p>
+
+        <a href="/" style="
+          display:inline-block;
+          margin-top:30px;
+          color:#38bdf8;
+          text-decoration:none;
+          border:2px solid #38bdf8;
+          padding:12px 30px;
+          border-radius:8px;">
+          Go Back
+        </a>
       </body>
     `);
   } catch (error) {
@@ -74,6 +154,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// Start Server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
