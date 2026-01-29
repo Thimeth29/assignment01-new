@@ -17,9 +17,10 @@ const BUCKET_NAME = process.env.BUCKET_NAME;
 // Multer
 const upload = multer({ storage: multer.memoryStorage() });
 
-/* =========================
-   HOME PAGE
-========================= */
+
+
+// HOME PAGE
+
 app.get('/', (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -222,9 +223,9 @@ function uploadFile() {
 `);
 });
 
-/* =========================
-   UPLOAD ENDPOINT
-========================= */
+
+// UPLOAD ENDPOINT
+
 app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file || !BUCKET_NAME) {
     return res.status(400).send('Missing file or bucket');
@@ -245,16 +246,17 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-/* =========================
-   HEALTH
-========================= */
+
+
+// HEALTH
+
 app.get('/health', (req, res) => {
   res.send('OK');
 });
 
-/* =========================
-   START SERVER
-========================= */
+
+// START SERVER
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on port ' + PORT);
 });
